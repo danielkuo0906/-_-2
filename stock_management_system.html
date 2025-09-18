@@ -1,0 +1,926 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>藥品經銷商進銷存系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 1.5rem;
+        }
+        .nav-link {
+            cursor: pointer;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+        }
+        .nav-link.active {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .nav-link:hover:not(.active) {
+            background-color: #e5e7eb;
+        }
+        .data-table th, .data-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .data-table tr:hover {
+            background-color: #f3f4f6;
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+        .btn-secondary {
+            background-color: #e5e7eb;
+            color: #4b5563;
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db;
+        }
+        .input {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+        }
+        .alert {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .alert.show {
+            opacity: 1;
+        }
+        .alert.success { background-color: #10b981; }
+        .alert.error { background-color: #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="alert" id="message-box"></div>
+
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center mb-8">藥品經銷商進銷存系統</h1>
+
+        <div class="flex justify-center items-center space-x-4 mb-8">
+            <button class="nav-link active" onclick="showSection('dashboard')">儀表板</button>
+            <button class="nav-link" onclick="showSection('inventory')">庫存管理</button>
+            <button class="nav-link" onclick="showSection('inbound')">進貨管理</button>
+            <button class="nav-link" onclick="showSection('outbound')">出貨管理</button>
+            <button class="nav-link" onclick="showSection('monthly-report')">月出貨統計</button>
+            <button class="nav-link" onclick="showSection('customers')">客戶管理</button>
+        </div>
+
+        <!-- 儀表板 -->
+        <div id="dashboard" class="content-section">
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">庫存狀態概覽</h2>
+                <div id="inventory-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- 庫存概覽會在這裡動態生成 -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">待處理訂單</h2>
+                <div id="outbound-pending-list" class="overflow-x-auto">
+                    <table class="w-full data-table">
+                        <thead>
+                            <tr>
+                                <th>單號</th>
+                                <th>客戶</th>
+                                <th>產品</th>
+                                <th>數量</th>
+                                <th>狀態</th>
+                                <th>動作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 待處理訂單會在這裡動態生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 庫存管理 -->
+        <div id="inventory" class="content-section hidden">
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">產品列表</h2>
+                <div id="inventory-list" class="overflow-x-auto">
+                    <table class="w-full data-table">
+                        <thead>
+                            <tr>
+                                <th>產品名稱</th>
+                                <th>當前庫存</th>
+                                <th>安全庫存</th>
+                                <th>單位成本</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 產品列表會在這裡動態生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">新增/編輯產品</h2>
+                <form id="product-form" class="space-y-4">
+                    <input type="hidden" id="product-id">
+                    <div>
+                        <label for="product-name" class="block text-sm font-medium text-gray-700">產品名稱</label>
+                        <input type="text" id="product-name" required class="mt-1 input">
+                    </div>
+                    <div>
+                        <label for="current-stock" class="block text-sm font-medium text-gray-700">當前庫存</label>
+                        <input type="number" id="current-stock" required class="mt-1 input">
+                    </div>
+                    <div>
+                        <label for="safety-stock" class="block text-sm font-medium text-gray-700">安全庫存</label>
+                        <input type="number" id="safety-stock" required class="mt-1 input">
+                    </div>
+                    <div>
+                        <label for="unit-cost" class="block text-sm font-medium text-gray-700">單位成本</label>
+                        <input type="number" id="unit-cost" required class="mt-1 input">
+                    </div>
+                    <button type="submit" class="btn btn-primary">儲存產品</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 進貨管理 -->
+        <div id="inbound" class="content-section hidden">
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">記錄新進貨單</h2>
+                <form id="inbound-form" class="space-y-4">
+                    <div>
+                        <label for="inbound-product" class="block text-sm font-medium text-gray-700">選擇產品</label>
+                        <select id="inbound-product" required class="mt-1 input">
+                            <!-- 產品選項會在這裡動態生成 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label for="inbound-quantity" class="block text-sm font-medium text-gray-700">進貨數量</label>
+                        <input type="number" id="inbound-quantity" required class="mt-1 input">
+                    </div>
+                    <button type="submit" class="btn btn-primary">記錄進貨</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 出貨管理 -->
+        <div id="outbound" class="content-section hidden">
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">記錄新出貨單</h2>
+                <form id="outbound-form" class="space-y-4">
+                    <input type="hidden" id="outbound-order-id">
+                    <div>
+                        <label for="outbound-product" class="block text-sm font-medium text-gray-700">選擇產品</label>
+                        <select id="outbound-product" required class="mt-1 input">
+                            <!-- 產品選項會在這裡動態生成 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label for="outbound-quantity" class="block text-sm font-medium text-gray-700">出貨數量</label>
+                        <input type="number" id="outbound-quantity" required class="mt-1 input">
+                    </div>
+                    <div>
+                        <label for="outbound-customer" class="block text-sm font-medium text-gray-700">客戶名稱</label>
+                        <select id="outbound-customer" required class="mt-1 input">
+                            <!-- 客戶選項會在這裡動態生成 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label for="outbound-amount" class="block text-sm font-medium text-gray-700">出貨金額</label>
+                        <input type="number" id="outbound-amount" required class="mt-1 input">
+                    </div>
+                    <div>
+                        <label for="outbound-status" class="block text-sm font-medium text-gray-700">狀態</label>
+                        <select id="outbound-status" class="mt-1 input">
+                            <option value="待處理">待處理</option>
+                            <option value="已出貨">已出貨</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="outbound-submit-btn">記錄出貨</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">出貨訂單列表</h2>
+                <div id="outbound-list" class="overflow-x-auto">
+                    <table class="w-full data-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>單號</th>
+                                <th>客戶</th>
+                                <th>產品</th>
+                                <th>數量</th>
+                                <th>金額</th>
+                                <th>狀態</th>
+                                <th>動作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 所有出貨訂單會在這裡動態生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 月出貨統計表 -->
+        <div id="monthly-report" class="content-section hidden">
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">月出貨總覽</h2>
+                <div id="report-table-container" class="overflow-x-auto">
+                    <!-- 月出貨統計表格會在這裡動態生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- 客戶管理 -->
+        <div id="customers" class="content-section hidden">
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">客戶列表</h2>
+                <div id="customer-list" class="overflow-x-auto">
+                    <table class="w-full data-table">
+                        <thead>
+                            <tr>
+                                <th>客戶名稱</th>
+                                <th>經營模式</th>
+                                <th>地區</th>
+                                <th>備註</th>
+                                <!-- 產品單價欄位會在這裡動態生成 -->
+                                <th>動作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 客戶列表會在這裡動態生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">新增/編輯客戶</h2>
+                <form id="customer-form" class="space-y-4">
+                    <input type="hidden" id="customer-id">
+                    <div>
+                        <label for="customer-name-input" class="block text-sm font-medium text-gray-700">客戶名稱</label>
+                        <input type="text" id="customer-name-input" required class="mt-1 input">
+                    </div>
+                    <div>
+                        <label for="customer-model" class="block text-sm font-medium text-gray-700">經營模式</label>
+                        <select id="customer-model" class="mt-1 input">
+                            <option value="現金">現金</option>
+                            <option value="合約">合約</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="customer-region" class="block text-sm font-medium text-gray-700">地區</label>
+                        <input type="text" id="customer-region" class="mt-1 input">
+                    </div>
+                    <div>
+                        <label for="customer-notes" class="block text-sm font-medium text-gray-700">備註</label>
+                        <textarea id="customer-notes" class="mt-1 input"></textarea>
+                    </div>
+                    <div id="product-pricing-container">
+                        <h3 class="text-lg font-semibold mt-4">各品項單價 (選填)</h3>
+                        <p class="text-sm text-gray-500 mb-2">如果您有特定合約價格，請在此輸入</p>
+                        <!-- 品項單價輸入會在這裡動態生成 -->
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="customer-submit-btn">儲存客戶</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let inventoryData = JSON.parse(localStorage.getItem('inventoryData')) || [
+            { id: 'ca-45', name: '鈣補骨力45粒', stock: 150, safetyStock: 50, cost: 600 },
+            { id: 'ca-180', name: '鈣補骨力180粒', stock: 100, safetyStock: 30, cost: 2000 },
+            { id: 'ca-450', name: '鈣補骨力450粒', stock: 50, safetyStock: 10, cost: 4906 },
+            { id: 'pa-300c', name: '百德海寶300粒罐裝', stock: 200, safetyStock: 80, cost: 2500 },
+            { id: 'pa-300r', name: '百德海寶300粒排裝', stock: 250, safetyStock: 100, cost: 2500 },
+            { id: 'fi-30', name: '高單位魚油30粒', stock: 80, safetyStock: 25, cost: 180 },
+            { id: 'vi-60', name: '高單位緩釋錠維他命C+D60粒', stock: 120, safetyStock: 40, cost: 340 },
+        ];
+        let inboundOrders = JSON.parse(localStorage.getItem('inboundOrders')) || [];
+        let outboundOrders = JSON.parse(localStorage.getItem('outboundOrders')) || [
+             { id: `OUT-1701388800000`, productId: 'ca-45', quantity: 5, customer: '快樂藥局', amount: 3000, status: '已出貨', date: new Date(2023, 11, 1).toISOString() },
+             { id: `OUT-1701475200000`, productId: 'pa-300c', quantity: 10, customer: '健康診所', amount: 25000, status: '已出貨', date: new Date(2023, 11, 2).toISOString() },
+             { id: `OUT-1702598400000`, productId: 'ca-45', quantity: 15, customer: '仁愛藥局', amount: 9000, status: '已出貨', date: new Date(2023, 11, 15).toISOString() },
+             { id: `OUT-1702857600000`, productId: 'pa-300c', quantity: 20, customer: '快樂藥局', amount: 50000, status: '已出貨', date: new Date(2023, 11, 18).toISOString() },
+             { id: `OUT-1702944000000`, productId: 'vi-60', quantity: 10, customer: '健康診所', amount: 3400, status: '已出貨', date: new Date(2023, 11, 19).toISOString() },
+             { id: `OUT-1703030400000`, productId: 'ca-180', quantity: 5, customer: '仁愛藥局', amount: 10000, status: '已出貨', date: new Date(2023, 11, 20).toISOString() },
+             { id: `OUT-1703203200000`, productId: 'ca-45', quantity: 8, customer: '大同藥局', amount: 4800, status: '待處理', date: new Date(2023, 11, 22).toISOString() },
+             { id: `OUT-1703289600000`, productId: 'pa-300r', quantity: 12, customer: '中央藥局', amount: 30000, status: '待處理', date: new Date(2023, 11, 23).toISOString() },
+        ];
+        let customersData = JSON.parse(localStorage.getItem('customersData')) || [
+            { id: 'customer-1', name: '快樂藥局', model: '現金', region: '桃園區', notes: '', prices: {} },
+            { id: 'customer-2', name: '健康診所', model: '合約', region: '中壢區', notes: '長期合作客戶', prices: { 'ca-45': 550, 'pa-300c': 2200 } },
+            { id: 'customer-3', name: '仁愛藥局', model: '合約', region: '新竹區', notes: '', prices: { 'ca-45': 580, 'ca-180': 1800 } },
+            { id: 'customer-4', name: '大同藥局', model: '現金', region: '桃園區', notes: '', prices: {} },
+            { id: 'customer-5', name: '中央藥局', model: '合約', region: '新竹區', notes: '需要定期追蹤', prices: { 'pa-300r': 2400 } }
+        ];
+        let editingOrderId = null;
+        let editingCustomerId = null;
+
+        // 顯示不同區塊的函數
+        function showSection(sectionId) {
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`[onclick="showSection('${sectionId}')"]`).classList.add('active');
+
+            if (sectionId === 'dashboard') {
+                renderDashboard();
+            } else if (sectionId === 'inventory') {
+                renderInventoryList();
+            } else if (sectionId === 'inbound') {
+                populateProductSelects();
+            } else if (sectionId === 'outbound') {
+                populateProductSelects();
+                populateCustomerSelects();
+                renderOutboundList();
+                document.getElementById('outbound-form').reset();
+                editingOrderId = null;
+                document.getElementById('outbound-submit-btn').textContent = '記錄出貨';
+            } else if (sectionId === 'monthly-report') {
+                renderMonthlyReport();
+            } else if (sectionId === 'customers') {
+                renderCustomerList();
+                populatePricingInputs();
+                document.getElementById('customer-form').reset();
+                editingCustomerId = null;
+                document.getElementById('customer-submit-btn').textContent = '儲存客戶';
+            }
+        }
+
+        // 顯示訊息框
+        function showMessage(message, type) {
+            const msgBox = document.getElementById('message-box');
+            msgBox.textContent = message;
+            msgBox.className = `alert show ${type}`;
+            setTimeout(() => {
+                msgBox.className = `alert`;
+            }, 3000);
+        }
+
+        // 渲染儀表板
+        function renderDashboard() {
+            renderInventorySummary();
+            renderOutboundPendingList();
+        }
+
+        // 渲染庫存概覽
+        function renderInventorySummary() {
+            const summaryEl = document.getElementById('inventory-summary');
+            summaryEl.innerHTML = '';
+            
+            const lowStockCount = inventoryData.filter(p => p.stock <= p.safetyStock).length;
+            const sufficientStockCount = inventoryData.filter(p => p.stock > p.safetyStock).length;
+            
+            summaryEl.innerHTML = `
+                <div class="p-4 bg-yellow-100 rounded-lg flex flex-col items-center">
+                    <span class="text-3xl font-bold text-yellow-600">${lowStockCount}</span>
+                    <span class="text-sm text-yellow-500 mt-2">低於安全庫存</span>
+                </div>
+                <div class="p-4 bg-green-100 rounded-lg flex flex-col items-center">
+                    <span class="text-3xl font-bold text-green-600">${sufficientStockCount}</span>
+                    <span class="text-sm text-green-500 mt-2">庫存充足</span>
+                </div>
+                <div class="p-4 bg-blue-100 rounded-lg flex flex-col items-center">
+                    <span class="text-3xl font-bold text-blue-600">${inventoryData.length}</span>
+                    <span class="text-sm text-blue-500 mt-2">總產品數</span>
+                </div>
+            `;
+        }
+
+        // 渲染待處理訂單
+        function renderOutboundPendingList() {
+            const listEl = document.querySelector('#outbound-pending-list tbody');
+            listEl.innerHTML = '';
+            const pendingOrders = outboundOrders.filter(o => o.status === '待處理');
+
+            if (pendingOrders.length === 0) {
+                listEl.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500">沒有待處理的訂單</td></tr>';
+                return;
+            }
+
+            pendingOrders.forEach(order => {
+                const product = inventoryData.find(p => p.id === order.productId);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${order.id}</td>
+                    <td>${order.customer}</td>
+                    <td>${product ? product.name : '未知產品'}</td>
+                    <td>${order.quantity}</td>
+                    <td>
+                        <span class="px-2 py-1 text-sm font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            ${order.status}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary text-xs" onclick="markAsShipped('${order.id}')">完成出貨</button>
+                    </td>
+                `;
+                listEl.appendChild(row);
+            });
+        }
+        
+        // 將待處理訂單標記為已出貨
+        function markAsShipped(orderId) {
+            const order = outboundOrders.find(o => o.id === orderId);
+            if (order) {
+                order.status = '已出貨';
+                saveData();
+                renderDashboard();
+                renderOutboundList();
+                showMessage('訂單已標記為出貨完成！', 'success');
+            }
+        }
+
+        // 渲染庫存列表
+        function renderInventoryList() {
+            const listEl = document.querySelector('#inventory-list tbody');
+            listEl.innerHTML = '';
+            inventoryData.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.name}</td>
+                    <td class="${product.stock <= product.safetyStock ? 'text-red-500 font-semibold' : ''}">
+                        ${product.stock}
+                    </td>
+                    <td>${product.safetyStock}</td>
+                    <td>$${product.cost}</td>
+                `;
+                listEl.appendChild(row);
+            });
+        }
+
+        // 渲染出貨訂單列表
+        function renderOutboundList() {
+            const listEl = document.querySelector('#outbound-list tbody');
+            listEl.innerHTML = '';
+            outboundOrders.forEach(order => {
+                const product = inventoryData.find(p => p.id === order.productId);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(order.date).toLocaleDateString()}</td>
+                    <td>${order.id}</td>
+                    <td>${order.customer}</td>
+                    <td>${product ? product.name : '未知產品'}</td>
+                    <td>${order.quantity}</td>
+                    <td>$${order.amount}</td>
+                    <td>
+                        <span class="px-2 py-1 text-sm font-semibold rounded-full ${order.status === '待處理' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">
+                            ${order.status}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary text-xs" onclick="editOutboundOrder('${order.id}')">編輯</button>
+                    </td>
+                `;
+                listEl.appendChild(row);
+            });
+        }
+        
+        // 編輯出貨訂單
+        function editOutboundOrder(orderId) {
+            const order = outboundOrders.find(o => o.id === orderId);
+            if (order) {
+                editingOrderId = orderId;
+                document.getElementById('outbound-product').value = order.productId;
+                document.getElementById('outbound-quantity').value = order.quantity;
+                document.getElementById('outbound-customer').value = order.customer;
+                document.getElementById('outbound-amount').value = order.amount;
+                document.getElementById('outbound-status').value = order.status;
+                document.getElementById('outbound-submit-btn').textContent = '更新訂單';
+                showMessage('已載入訂單資料，您可以開始編輯。', 'success');
+            }
+        }
+
+        // 渲染月出貨統計表
+        function renderMonthlyReport() {
+            const reportContainer = document.getElementById('report-table-container');
+            reportContainer.innerHTML = '';
+            
+            const monthlyData = {};
+
+            outboundOrders.filter(o => o.status === '已出貨').forEach(order => {
+                const date = new Date(order.date);
+                const yearMonth = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                const productId = order.productId;
+                
+                if (!monthlyData[yearMonth]) {
+                    monthlyData[yearMonth] = { totalAmount: 0, products: {} };
+                }
+                if (!monthlyData[yearMonth].products[productId]) {
+                    monthlyData[yearMonth].products[productId] = { quantity: 0, amount: 0 };
+                }
+                monthlyData[yearMonth].products[productId].quantity += order.quantity;
+                monthlyData[yearMonth].products[productId].amount += order.amount;
+                monthlyData[yearMonth].totalAmount += order.amount;
+            });
+
+            const months = Object.keys(monthlyData).sort();
+            if (months.length === 0) {
+                reportContainer.innerHTML = '<p class="text-center text-gray-500">尚無已出貨的訂單</p>';
+                return;
+            }
+
+            let tableHTML = `<table class="w-full data-table"><thead><tr><th rowspan="2">月份</th><th colspan="${inventoryData.length}" class="text-center">出貨數量</th><th colspan="${inventoryData.length}" class="text-center">出貨金額</th><th rowspan="2">總金額</th></tr><tr>`;
+            inventoryData.forEach(p => {
+                tableHTML += `<th class="text-center">${p.name}</th>`;
+            });
+            inventoryData.forEach(p => {
+                tableHTML += `<th class="text-center">${p.name}</th>`;
+            });
+            tableHTML += `</tr></thead><tbody>`;
+
+            months.forEach(month => {
+                tableHTML += `<tr><td>${month}</td>`;
+                // 數量
+                inventoryData.forEach(p => {
+                    const data = monthlyData[month].products[p.id] || { quantity: 0, amount: 0 };
+                    tableHTML += `<td>${data.quantity}</td>`;
+                });
+                // 金額
+                inventoryData.forEach(p => {
+                    const data = monthlyData[month].products[p.id] || { quantity: 0, amount: 0 };
+                    tableHTML += `<td>$${data.amount}</td>`;
+                });
+                tableHTML += `<td>$${monthlyData[month].totalAmount}</td></tr>`;
+            });
+
+            tableHTML += `</tbody></table>`;
+            reportContainer.innerHTML = tableHTML;
+        }
+        
+        // 渲染客戶列表
+        function renderCustomerList() {
+            const tableEl = document.querySelector('#customer-list table');
+            const theadEl = document.querySelector('#customer-list thead tr');
+            const tbodyEl = document.querySelector('#customer-list tbody');
+
+            // 清空舊的表頭和內容
+            theadEl.innerHTML = `
+                <th>客戶名稱</th>
+                <th>經營模式</th>
+                <th>地區</th>
+                <th>備註</th>
+            `;
+            tbodyEl.innerHTML = '';
+
+            // 動態生成產品單價的表頭
+            inventoryData.forEach(product => {
+                const th = document.createElement('th');
+                th.textContent = `${product.name} 單價`;
+                theadEl.appendChild(th);
+            });
+            const thActions = document.createElement('th');
+            thActions.textContent = '動作';
+            theadEl.appendChild(thActions);
+
+            // 動態生成客戶數據
+            customersData.forEach((customer) => {
+                const row = document.createElement('tr');
+                let rowHtml = `
+                    <td>${customer.name}</td>
+                    <td>${customer.model}</td>
+                    <td>${customer.region}</td>
+                    <td>${customer.notes}</td>
+                `;
+                inventoryData.forEach(product => {
+                    const price = customer.prices[product.id];
+                    rowHtml += `<td>${price ? '$' + price : '成本價'}</td>`;
+                });
+                rowHtml += `
+                    <td>
+                        <button class="btn btn-secondary text-xs" onclick="editCustomer('${customer.id}')">編輯</button>
+                        <button class="btn btn-secondary text-xs" onclick="deleteCustomer('${customer.id}')">刪除</button>
+                    </td>
+                `;
+                row.innerHTML = rowHtml;
+                tbodyEl.appendChild(row);
+            });
+        }
+
+        // 編輯客戶
+        function editCustomer(id) {
+            const customer = customersData.find(c => c.id === id);
+            if (customer) {
+                editingCustomerId = id;
+                document.getElementById('customer-name-input').value = customer.name;
+                document.getElementById('customer-model').value = customer.model;
+                document.getElementById('customer-region').value = customer.region;
+                document.getElementById('customer-notes').value = customer.notes;
+                document.getElementById('customer-submit-btn').textContent = '更新客戶';
+                
+                populatePricingInputs(customer.prices);
+                
+                showMessage('已載入客戶資料，您可以開始編輯。', 'success');
+            }
+        }
+
+        // 刪除客戶
+        function deleteCustomer(id) {
+            customersData = customersData.filter(customer => customer.id !== id);
+            saveData();
+            renderCustomerList();
+            showMessage('客戶已刪除！', 'success');
+        }
+
+        // 填充產品選擇器
+        function populateProductSelects() {
+            const inboundSelect = document.getElementById('inbound-product');
+            const outboundSelect = document.getElementById('outbound-product');
+            if (inboundSelect) {
+                inboundSelect.innerHTML = '<option value="" disabled selected>請選擇產品</option>';
+            }
+            if (outboundSelect) {
+                outboundSelect.innerHTML = '<option value="" disabled selected>請選擇產品</option>';
+            }
+            
+            inventoryData.forEach(product => {
+                const option = `<option value="${product.id}">${product.name}</option>`;
+                if (inboundSelect) {
+                    inboundSelect.innerHTML += option;
+                }
+                if (outboundSelect) {
+                    outboundSelect.innerHTML += option;
+                }
+            });
+        }
+        
+        // 填充客戶選擇器
+        function populateCustomerSelects() {
+            const outboundCustomerSelect = document.getElementById('outbound-customer');
+            outboundCustomerSelect.innerHTML = '<option value="" disabled selected>請選擇客戶</option>';
+            customersData.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.name;
+                option.textContent = customer.name;
+                outboundCustomerSelect.appendChild(option);
+            });
+        }
+
+        // 填充產品單價輸入框
+        function populatePricingInputs(prices = {}) {
+            const container = document.getElementById('product-pricing-container');
+            const form = document.getElementById('customer-form');
+
+            // Remove existing pricing inputs
+            form.querySelectorAll('.pricing-input-group').forEach(el => el.remove());
+
+            inventoryData.forEach(product => {
+                const div = document.createElement('div');
+                div.className = 'pricing-input-group';
+                div.innerHTML = `
+                    <label for="price-${product.id}" class="block text-sm font-medium text-gray-700">${product.name} 單價</label>
+                    <input type="number" id="price-${product.id}" name="price-${product.id}" placeholder="預設成本: $${product.cost}" class="mt-1 input">
+                `;
+                container.appendChild(div);
+
+                // Populate with existing price if available
+                const priceInput = document.getElementById(`price-${product.id}`);
+                if (prices[product.id]) {
+                    priceInput.value = prices[product.id];
+                }
+            });
+        }
+        
+        // 處理產品單價自動帶入
+        function calculateOutboundAmount() {
+            const productId = document.getElementById('outbound-product').value;
+            const customerName = document.getElementById('outbound-customer').value;
+            const quantity = parseInt(document.getElementById('outbound-quantity').value) || 0;
+            const amountInput = document.getElementById('outbound-amount');
+
+            if (!productId || !customerName || !quantity) return;
+
+            const customer = customersData.find(c => c.name === customerName);
+            const product = inventoryData.find(p => p.id === productId);
+
+            let unitPrice = product.cost; // Default to cost if no special price
+            if (customer && customer.prices && customer.prices[productId]) {
+                unitPrice = customer.prices[productId];
+            }
+
+            amountInput.value = unitPrice * quantity;
+        }
+
+        document.getElementById('outbound-product').addEventListener('change', calculateOutboundAmount);
+        document.getElementById('outbound-customer').addEventListener('change', calculateOutboundAmount);
+        document.getElementById('outbound-quantity').addEventListener('input', calculateOutboundAmount);
+
+        // 處理產品表單提交
+        document.getElementById('product-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const productName = document.getElementById('product-name').value;
+            const currentStock = parseInt(document.getElementById('current-stock').value);
+            const safetyStock = parseInt(document.getElementById('safety-stock').value);
+            const unitCost = parseInt(document.getElementById('unit-cost').value);
+
+            // 這裡可以新增編輯邏輯，但目前只新增
+            const newId = `prod-${Date.now()}`;
+            inventoryData.push({ id: newId, name: productName, stock: currentStock, safetyStock: safetyStock, cost: unitCost });
+            saveData();
+            showSection('inventory');
+            showMessage('產品已新增！', 'success');
+        });
+
+        // 處理客戶表單提交
+        document.getElementById('customer-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const customerName = document.getElementById('customer-name-input').value;
+            const customerModel = document.getElementById('customer-model').value;
+            const customerRegion = document.getElementById('customer-region').value;
+            const customerNotes = document.getElementById('customer-notes').value;
+
+            // Collect pricing data
+            const customerPrices = {};
+            inventoryData.forEach(product => {
+                const priceInput = document.getElementById(`price-${product.id}`);
+                if (priceInput && priceInput.value) {
+                    customerPrices[product.id] = parseInt(priceInput.value);
+                }
+            });
+
+            if (editingCustomerId) {
+                // 更新現有客戶
+                const customer = customersData.find(c => c.id === editingCustomerId);
+                if (customer) {
+                    customer.name = customerName;
+                    customer.model = customerModel;
+                    customer.region = customerRegion;
+                    customer.notes = customerNotes;
+                    customer.prices = customerPrices;
+                    showMessage('客戶資料已更新！', 'success');
+                }
+                editingCustomerId = null;
+                document.getElementById('customer-submit-btn').textContent = '儲存客戶';
+            } else {
+                // 創建新客戶
+                if (!customersData.find(c => c.name === customerName)) {
+                    customersData.push({
+                        id: `cust-${Date.now()}`,
+                        name: customerName,
+                        model: customerModel,
+                        region: customerRegion,
+                        notes: customerNotes,
+                        prices: customerPrices
+                    });
+                    showMessage('客戶已新增！', 'success');
+                } else {
+                    showMessage('客戶名稱已存在！', 'error');
+                }
+            }
+            saveData();
+            document.getElementById('customer-form').reset();
+            populatePricingInputs();
+            renderCustomerList();
+        });
+
+        // 處理進貨表單提交
+        document.getElementById('inbound-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const productId = document.getElementById('inbound-product').value;
+            const quantity = parseInt(document.getElementById('inbound-quantity').value);
+
+            const product = inventoryData.find(p => p.id === productId);
+            if (product) {
+                product.stock += quantity;
+                inboundOrders.push({ id: `IN-${Date.now()}`, productId: productId, quantity: quantity, date: new Date().toISOString() });
+                saveData();
+                showSection('dashboard');
+                showMessage('進貨記錄成功！', 'success');
+            } else {
+                showMessage('產品不存在！', 'error');
+            }
+        });
+
+        // 處理出貨表單提交
+        document.getElementById('outbound-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const productId = document.getElementById('outbound-product').value;
+            const quantity = parseInt(document.getElementById('outbound-quantity').value);
+            const customerName = document.getElementById('outbound-customer').value;
+            const amount = parseInt(document.getElementById('outbound-amount').value);
+            const status = document.getElementById('outbound-status').value;
+
+            if (editingOrderId) {
+                // 編輯現有訂單
+                const order = outboundOrders.find(o => o.id === editingOrderId);
+                if (order) {
+                    const oldQuantity = order.quantity;
+                    const stockChange = quantity - oldQuantity;
+                    
+                    const product = inventoryData.find(p => p.id === productId);
+                    if (product) {
+                        if (product.stock < stockChange) {
+                            showMessage('庫存不足，無法完成此編輯！', 'error');
+                            return;
+                        }
+                        product.stock -= stockChange;
+                    }
+                    
+                    order.productId = productId;
+                    order.quantity = quantity;
+                    order.customer = customerName;
+                    order.amount = amount;
+                    order.status = status;
+                    saveData();
+                    showMessage('訂單已成功更新！', 'success');
+                }
+                editingOrderId = null;
+                document.getElementById('outbound-submit-btn').textContent = '記錄出貨';
+            } else {
+                // 創建新訂單
+                const product = inventoryData.find(p => p.id === productId);
+                if (product) {
+                    if (product.stock < quantity) {
+                        showMessage('庫存不足！無法出貨。', 'error');
+                        return;
+                    }
+                    product.stock -= quantity;
+                    outboundOrders.push({
+                        id: `OUT-${Date.now()}`,
+                        productId: productId,
+                        quantity: quantity,
+                        customer: customerName,
+                        amount: amount,
+                        status: status,
+                        date: new Date().toISOString()
+                    });
+                    saveData();
+                    showMessage('出貨單記錄成功！', 'success');
+                } else {
+                    showMessage('產品不存在！', 'error');
+                }
+            }
+            document.getElementById('outbound-form').reset();
+            showSection('outbound');
+        });
+
+        // 將數據存儲到本地 localStorage
+        function saveData() {
+            localStorage.setItem('inventoryData', JSON.stringify(inventoryData));
+            localStorage.setItem('inboundOrders', JSON.stringify(inboundOrders));
+            localStorage.setItem('outboundOrders', JSON.stringify(outboundOrders));
+            localStorage.setItem('customersData', JSON.stringify(customersData));
+        }
+
+        // 初始化
+        window.onload = function() {
+            showSection('dashboard');
+        };
+    </script>
+</body>
+</html>
